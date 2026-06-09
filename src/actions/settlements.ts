@@ -3,7 +3,11 @@
 import { db } from "@/db";
 import { settlements } from "@/db/schema";
 import { requireAuth } from "@/lib/auth";
-import { eq } from "drizzle-orm";
+import {
+  computeBalances,
+  getMemberNameMap,
+  minimizeTransfers,
+} from "@/lib/balance";
 import { revalidatePath } from "next/cache";
 
 export async function markSettled(
@@ -16,29 +20,29 @@ export async function markSettled(
   if (amount <= 0) throw new Error("Amount must be positive");
   if (fromId === toId) throw new Error("Cannot settle with yourself");
 
+  const balances = await computeBalances();
+  const memberMap = await getMemberNameMap();
+  const currentTransfers = minimizeTransfers(balances, memberMap);
+
+  const isValid = currentTransfers.some(
+    (t) =>
+      t.fromId === fromId &&
+      t.toId === toId &&
+      Math.abs(t.amount - amount) < 0.01
+  );
+
+  if (!isValid) {
+    throw new Error(
+      "This settlement is no longer valid. The balance may have already been settled or changed."
+    );
+  }
+
   await db.insert(settlements).values({
     fromId,
     toId,
     amount: amount.toFixed(2),
     note: note ?? null,
   });
-
-  revalidatePath("/");
-  revalidatePath("/settle");
-  revalidatePath("/members");
-}
-
-export async function unsettleBatch(settlementId: string) {
-  await requireAuth();
-
-  const deleted = await db
-    .delete(settlements)
-    .where(eq(settlements.id, settlementId))
-    .returning();
-
-  if (deleted.length === 0) {
-    throw new Error("Settlement not found");
-  }
 
   revalidatePath("/");
   revalidatePath("/settle");

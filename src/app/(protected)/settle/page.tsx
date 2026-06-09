@@ -1,15 +1,9 @@
-import { SettledBatchRow } from "@/components/settled-batch-row";
 import { SettlementRow } from "@/components/settlement-row";
-import { getMinimizedTransfers, getSettledBatches } from "@/lib/queries";
+import { getMinimizedTransfers } from "@/lib/queries";
 import { CheckCircle2 } from "lucide-react";
 
 export default async function SettlePage() {
-  const [transfers, settledBatches] = await Promise.all([
-    getMinimizedTransfers(),
-    getSettledBatches(),
-  ]);
-
-  const allClear = transfers.length === 0 && settledBatches.length === 0;
+  const transfers = await getMinimizedTransfers();
 
   return (
     <>
@@ -21,7 +15,7 @@ export default async function SettlePage() {
             </div>
             <div className="mt-1 text-base font-semibold text-[var(--text-primary)]">
               {transfers.length === 0
-                ? "Nothing pending"
+                ? "All settled up"
                 : `${transfers.length} pending settlement${transfers.length === 1 ? "" : "s"}`}
             </div>
           </div>
@@ -33,15 +27,15 @@ export default async function SettlePage() {
         </div>
       </div>
 
-      {transfers.length > 0 && (
+      {transfers.length > 0 ? (
         <>
           <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[var(--text-secondary)]">
             Who pays whom
           </div>
-          <div className="mb-6 flex flex-col gap-2">
+          <div className="flex flex-col gap-2">
             {transfers.map((t) => (
               <SettlementRow
-                key={`pending-${t.fromId}-${t.toId}-${t.amount}`}
+                key={`${t.fromId}-${t.toId}-${t.amount}`}
                 fromId={t.fromId}
                 fromName={t.fromName}
                 fromEmoji={t.fromEmoji}
@@ -55,44 +49,16 @@ export default async function SettlePage() {
             ))}
           </div>
         </>
-      )}
-
-      {settledBatches.length > 0 && (
-        <>
-          <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[var(--text-secondary)]">
-            Settled batches
-          </div>
-          <div className="flex flex-col gap-2">
-            {settledBatches.map((batch) => (
-              <SettledBatchRow
-                key={batch.id}
-                id={batch.id}
-                fromName={batch.fromName}
-                fromEmoji={batch.fromEmoji}
-                fromColor={batch.fromColor}
-                toName={batch.toName}
-                toEmoji={batch.toEmoji}
-                toColor={batch.toColor}
-                amount={batch.amount}
-                settledAt={batch.settledAt}
-              />
-            ))}
-          </div>
-        </>
-      )}
-
-      {allClear && (
-        <div className="flex flex-col items-center justify-center gap-3 py-14 text-[13px] text-[var(--text-secondary)]">
+      ) : (
+        <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
           <CheckCircle2 className="h-10 w-10 text-[var(--text-success)]" />
-          <span>Everyone is square. No transfers needed.</span>
+          <p className="text-[14px] font-medium text-[var(--text-primary)]">
+            All settled up
+          </p>
+          <p className="text-[13px] text-[var(--text-secondary)]">
+            No outstanding balances.
+          </p>
         </div>
-      )}
-
-      {transfers.length === 0 && settledBatches.length > 0 && (
-        <p className="mt-4 text-center text-[12px] text-[var(--text-secondary)]">
-          All current balances are settled. Undo a batch above if payment was
-          recorded by mistake.
-        </p>
       )}
     </>
   );

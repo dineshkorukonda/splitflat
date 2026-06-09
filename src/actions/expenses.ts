@@ -18,20 +18,24 @@ export type ExpenseInput = {
 
 function validateExpenseInput(data: ExpenseInput) {
   if (!data.description.trim()) throw new Error("Description is required");
-  if (data.amount <= 0) throw new Error("Amount must be positive");
+  if (data.amount <= 0) throw new Error("Amount must be greater than 0");
   if (data.memberIds.length === 0)
-    throw new Error("At least one member must be selected");
+    throw new Error("Select at least one member to split with");
 }
 
 function computeShares(amount: number, memberIds: string[]) {
-  const share = roundMoney(amount / memberIds.length);
-  return memberIds.map((memberId, index) => {
-    if (index === memberIds.length - 1) {
-      const allocated = roundMoney(share * (memberIds.length - 1));
-      return roundMoney(amount - allocated);
-    }
-    return share;
-  });
+  const shareEach = Math.floor((amount * 100) / memberIds.length) / 100;
+  const remainder = roundMoney(amount - shareEach * memberIds.length);
+  return memberIds.map((_, idx) =>
+    roundMoney(idx === 0 ? shareEach + remainder : shareEach)
+  );
+}
+
+function revalidateExpensePaths() {
+  revalidatePath("/");
+  revalidatePath("/expenses");
+  revalidatePath("/settle");
+  revalidatePath("/members");
 }
 
 export async function addExpense(data: ExpenseInput) {
@@ -40,34 +44,28 @@ export async function addExpense(data: ExpenseInput) {
 
   const shares = computeShares(data.amount, data.memberIds);
 
-  const [expense] = await db
-    .insert(expenses)
-    .values({
-      description: data.description.trim(),
-      amount: data.amount.toFixed(2),
-      paidBy: data.paidById,
-      category: data.category,
-      date: data.date,
-    })
-    .returning();
+  await db.transaction(async (tx) => {
+    const [expense] = await tx
+      .insert(expenses)
+      .values({
+        description: data.description.trim(),
+        amount: data.amount.toFixed(2),
+        paidBy: data.paidById,
+        category: data.category,
+        date: data.date,
+      })
+      .returning();
 
-  try {
-    await db.insert(expenseSplits).values(
+    await tx.insert(expenseSplits).values(
       data.memberIds.map((memberId, i) => ({
         expenseId: expense.id,
         memberId,
         share: shares[i].toFixed(2),
       }))
     );
-  } catch (error) {
-    await db.delete(expenses).where(eq(expenses.id, expense.id));
-    throw error;
-  }
+  });
 
-  revalidatePath("/");
-  revalidatePath("/expenses");
-  revalidatePath("/settle");
-  revalidatePath("/members");
+  revalidateExpensePaths();
 }
 
 export async function updateExpense(id: string, data: ExpenseInput) {
@@ -76,39 +74,34 @@ export async function updateExpense(id: string, data: ExpenseInput) {
 
   const shares = computeShares(data.amount, data.memberIds);
 
-  await db
-    .update(expenses)
-    .set({
-      description: data.description.trim(),
-      amount: data.amount.toFixed(2),
-      paidBy: data.paidById,
-      category: data.category,
-      date: data.date,
-    })
-    .where(eq(expenses.id, id));
+  await db.transaction(async (tx) => {
+    await tx
+      .update(expenses)
+      .set({
+        description: data.description.trim(),
+        amount: data.amount.toFixed(2),
+        paidBy: data.paidById,
+        category: data.category,
+        date: data.date,
+      })
+      .where(eq(expenses.id, id));
 
-  await db.delete(expenseSplits).where(eq(expenseSplits.expenseId, id));
+    await tx.delete(expenseSplits).where(eq(expenseSplits.expenseId, id));
 
-  await db.insert(expenseSplits).values(
-    data.memberIds.map((memberId, i) => ({
-      expenseId: id,
-      memberId,
-      share: shares[i].toFixed(2),
-    }))
-  );
+    await tx.insert(expenseSplits).values(
+      data.memberIds.map((memberId, i) => ({
+        expenseId: id,
+        memberId,
+        share: shares[i].toFixed(2),
+      }))
+    );
+  });
 
-  revalidatePath("/");
-  revalidatePath("/expenses");
-  revalidatePath("/settle");
-  revalidatePath("/members");
+  revalidateExpensePaths();
 }
 
 export async function deleteExpense(id: string) {
   await requireAuth();
   await db.delete(expenses).where(eq(expenses.id, id));
-
-  revalidatePath("/");
-  revalidatePath("/expenses");
-  revalidatePath("/settle");
-  revalidatePath("/members");
+  revalidateExpensePaths();
 }

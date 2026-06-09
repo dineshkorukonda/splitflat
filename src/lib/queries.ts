@@ -1,18 +1,14 @@
 import { db } from "@/db";
-import {
-  categories,
-  expenseSplits,
-  expenses,
-  members,
-  settlements,
-} from "@/db/schema";
+import { categories, expenseSplits, expenses, members } from "@/db/schema";
 import { getCategoryMeta, type CategoryMeta } from "@/lib/categories";
 import {
-  computeMemberBalance,
+  computeBalances,
+  getMemberBalances as computeMemberBalances,
   minimizeTransfers,
   type MemberBalance,
-  type Transfer,
 } from "@/lib/balance";
+
+export type { MemberBalance } from "@/lib/balance";
 import { parseAmount } from "@/lib/format";
 import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 
@@ -51,135 +47,23 @@ export async function getCategories(): Promise<CategoryOption[]> {
 }
 
 export async function getMemberBalances(): Promise<MemberBalance[]> {
-  const allMembers = await getMembers();
-
-  const paidRows = await db
-    .select({
-      memberId: expenses.paidBy,
-      total: sql<string>`coalesce(sum(${expenses.amount}), 0)`,
-    })
-    .from(expenses)
-    .groupBy(expenses.paidBy);
-
-  const owedRows = await db
-    .select({
-      memberId: expenseSplits.memberId,
-      total: sql<string>`coalesce(sum(${expenseSplits.share}), 0)`,
-    })
-    .from(expenseSplits)
-    .groupBy(expenseSplits.memberId);
-
-  const sentRows = await db
-    .select({
-      memberId: settlements.fromId,
-      total: sql<string>`coalesce(sum(${settlements.amount}), 0)`,
-    })
-    .from(settlements)
-    .groupBy(settlements.fromId);
-
-  const receivedRows = await db
-    .select({
-      memberId: settlements.toId,
-      total: sql<string>`coalesce(sum(${settlements.amount}), 0)`,
-    })
-    .from(settlements)
-    .groupBy(settlements.toId);
-
-  const paidMap = new Map(
-    paidRows.map((r) => [r.memberId, parseAmount(r.total)])
-  );
-  const owedMap = new Map(
-    owedRows.map((r) => [r.memberId, parseAmount(r.total)])
-  );
-  const sentMap = new Map(
-    sentRows.map((r) => [r.memberId, parseAmount(r.total)])
-  );
-  const receivedMap = new Map(
-    receivedRows.map((r) => [r.memberId, parseAmount(r.total)])
-  );
-
-  return allMembers.map((m) =>
-    computeMemberBalance({
-      memberId: m.id,
-      name: m.name,
-      emoji: m.emoji,
-      colorCode: m.colorCode,
-      totalPaid: paidMap.get(m.id) ?? 0,
-      totalOwed: owedMap.get(m.id) ?? 0,
-      settlementsSent: sentMap.get(m.id) ?? 0,
-      settlementsReceived: receivedMap.get(m.id) ?? 0,
-    })
-  );
+  return computeMemberBalances();
 }
 
-export type SettledBatch = {
-  id: string;
-  fromId: string;
-  toId: string;
-  fromName: string;
-  toName: string;
-  fromEmoji: string;
-  toEmoji: string;
-  fromColor: string;
-  toColor: string;
-  amount: number;
-  settledAt: Date;
-};
-
-export async function getSettledBatches(): Promise<SettledBatch[]> {
-  const rows = await db
-    .select()
-    .from(settlements)
-    .orderBy(desc(settlements.settledAt));
-
-  if (rows.length === 0) return [];
-
-  const allMembers = await getMembers();
-  const memberMap = new Map(allMembers.map((m) => [m.id, m]));
-
-  return rows.map((row) => {
-    const from = memberMap.get(row.fromId)!;
-    const to = memberMap.get(row.toId)!;
-    return {
-      id: row.id,
-      fromId: row.fromId,
-      toId: row.toId,
-      fromName: from.name,
-      toName: to.name,
-      fromEmoji: from.emoji,
-      toEmoji: to.emoji,
-      fromColor: from.colorCode,
-      toColor: to.colorCode,
-      amount: parseAmount(row.amount),
-      settledAt: row.settledAt,
-    };
-  });
-}
-
-export async function getMinimizedTransfers(): Promise<
-  (Transfer & {
-    fromName: string;
-    toName: string;
-    fromEmoji: string;
-    toEmoji: string;
-    fromColor: string;
-    toColor: string;
-  })[]
-> {
-  const balances = await getMemberBalances();
-  const balanceMap = Object.fromEntries(
-    balances.map((b) => [b.memberId, b.balance])
-  );
-  const memberMap = new Map(balances.map((b) => [b.memberId, b]));
-  const transfers = minimizeTransfers(balanceMap);
+export async function getMinimizedTransfers() {
+  const [balances, allMembers] = await Promise.all([
+    computeBalances(),
+    getMembers(),
+  ]);
+  const nameMap = Object.fromEntries(allMembers.map((m) => [m.id, m.name]));
+  const memberById = new Map(allMembers.map((m) => [m.id, m]));
+  const transfers = minimizeTransfers(balances, nameMap);
 
   return transfers.map((t) => {
-    const from = memberMap.get(t.fromId)!;
-    const to = memberMap.get(t.toId)!;
+    const from = memberById.get(t.fromId)!;
+    const to = memberById.get(t.toId)!;
     return {
       ...t,
-      fromName: from.name,
-      toName: to.name,
       fromEmoji: from.emoji,
       toEmoji: to.emoji,
       fromColor: from.colorCode,
