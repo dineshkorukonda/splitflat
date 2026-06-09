@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f4f4f5;
+  --bg-tertiary: #f8f8fa;
+  --bg-elevated: #ffffff;
+  --bg-warning: #fef9c3;
+  --bg-info: #dbeafe;
+  --bg-success: #dcfce7;
+  --bg-accent: #18181b;
+
+  --text-primary: #18181b;
+  --text-secondary: #71717a;
+  --text-success: #15803d;
+  --text-danger: #dc2626;
+  --text-on-accent: #ffffff;
+
+  --border-tertiary: #e4e4e7;
+  --border-secondary: #d4d4d8;
+
+  --shadow-shell: 0 1px 3px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.06);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04);
+
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-primary: #18181b;
+  --bg-secondary: #27272a;
+  --bg-tertiary: #09090b;
+  --bg-elevated: #1c1c1f;
+  --bg-warning: #422006;
+  --bg-info: #172554;
+  --bg-success: #052e16;
+  --bg-accent: #fafafa;
+
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-success: #4ade80;
+  --text-danger: #f87171;
+  --text-on-accent: #18181b;
+
+  --border-tertiary: #3f3f46;
+  --border-secondary: #52525b;
+
+  --shadow-shell: 0 1px 3px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.4);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.2);
+
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+@theme inline {
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.card {
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border-tertiary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.card-interactive {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card-interactive:hover {
+  border-color: var(--border-secondary);
+  box-shadow: var(--shadow-shell);
+}

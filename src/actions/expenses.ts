@@ -1,0 +1,114 @@
+"use server";
+
+import { db } from "@/db";
+import { expenseSplits, expenses } from "@/db/schema";
+import { requireAuth } from "@/lib/auth";
+import { roundMoney } from "@/lib/format";
+import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+
+export type ExpenseInput = {
+  description: string;
+  amount: number;
+  paidById: string;
+  category: string;
+  date: string;
+  memberIds: string[];
+};
+
+function validateExpenseInput(data: ExpenseInput) {
+  if (!data.description.trim()) throw new Error("Description is required");
+  if (data.amount <= 0) throw new Error("Amount must be positive");
+  if (data.memberIds.length === 0)
+    throw new Error("At least one member must be selected");
+}
+
+function computeShares(amount: number, memberIds: string[]) {
+  const share = roundMoney(amount / memberIds.length);
+  return memberIds.map((memberId, index) => {
+    if (index === memberIds.length - 1) {
+      const allocated = roundMoney(share * (memberIds.length - 1));
+      return roundMoney(amount - allocated);
+    }
+    return share;
+  });
+}
+
+export async function addExpense(data: ExpenseInput) {
+  await requireAuth();
+  validateExpenseInput(data);
+
+  const shares = computeShares(data.amount, data.memberIds);
+
+  const [expense] = await db
+    .insert(expenses)
+    .values({
+      description: data.description.trim(),
+      amount: data.amount.toFixed(2),
+      paidBy: data.paidById,
+      category: data.category,
+      date: data.date,
+    })
+    .returning();
+
+  try {
+    await db.insert(expenseSplits).values(
+      data.memberIds.map((memberId, i) => ({
+        expenseId: expense.id,
+        memberId,
+        share: shares[i].toFixed(2),
+      }))
+    );
+  } catch (error) {
+    await db.delete(expenses).where(eq(expenses.id, expense.id));
+    throw error;
+  }
+
+  revalidatePath("/");
+  revalidatePath("/expenses");
+  revalidatePath("/settle");
+  revalidatePath("/members");
+}
+
+export async function updateExpense(id: string, data: ExpenseInput) {
+  await requireAuth();
+  validateExpenseInput(data);
+
+  const shares = computeShares(data.amount, data.memberIds);
+
+  await db
+    .update(expenses)
+    .set({
+      description: data.description.trim(),
+      amount: data.amount.toFixed(2),
+      paidBy: data.paidById,
+      category: data.category,
+      date: data.date,
+    })
+    .where(eq(expenses.id, id));
+
+  await db.delete(expenseSplits).where(eq(expenseSplits.expenseId, id));
+
+  await db.insert(expenseSplits).values(
+    data.memberIds.map((memberId, i) => ({
+      expenseId: id,
+      memberId,
+      share: shares[i].toFixed(2),
+    }))
+  );
+
+  revalidatePath("/");
+  revalidatePath("/expenses");
+  revalidatePath("/settle");
+  revalidatePath("/members");
+}
+
+export async function deleteExpense(id: string) {
+  await requireAuth();
+  await db.delete(expenses).where(eq(expenses.id, id));
+
+  revalidatePath("/");
+  revalidatePath("/expenses");
+  revalidatePath("/settle");
+  revalidatePath("/members");
+}
