@@ -1,10 +1,11 @@
 "use client";
 
+import { deleteExpense } from "@/actions/expenses";
 import { ExpenseEditDialog } from "@/components/expense-edit-dialog";
 import { ExpenseItem } from "@/components/expense-item";
 import type { CategoryOption, ExpenseWithDetails, Member } from "@/lib/queries";
 import { formatMonthYear } from "@/lib/format";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 
 type ExpensesListClientProps = {
   expenses: ExpenseWithDetails[];
@@ -22,6 +23,7 @@ export function ExpensesListClient({
   groupByMonth = false,
 }: ExpensesListClientProps) {
   const [selected, setSelected] = useState<ExpenseWithDetails | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   const categoryMap = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.slug, c])),
@@ -40,6 +42,28 @@ export function ExpensesListClient({
     return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
   }, [expenses, groupByMonth]);
 
+  const handleDelete = (exp: ExpenseWithDetails) => {
+    const ok = window.confirm(
+      `Delete "${exp.description}" (₹${exp.amount})? Balances will update.`
+    );
+    if (!ok) return;
+    startTransition(async () => {
+      await deleteExpense(exp.id);
+      if (selected?.id === exp.id) setSelected(null);
+    });
+  };
+
+  const renderItem = (exp: ExpenseWithDetails) => (
+    <ExpenseItem
+      key={exp.id}
+      expense={exp}
+      categoryMeta={categoryMap[exp.category]}
+      canEdit={canEdit}
+      onEdit={canEdit ? () => setSelected(exp) : undefined}
+      onDelete={canEdit ? () => handleDelete(exp) : undefined}
+    />
+  );
+
   if (expenses.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 py-12 text-center">
@@ -55,10 +79,6 @@ export function ExpensesListClient({
     );
   }
 
-  const handleClick = canEdit
-    ? (exp: ExpenseWithDetails) => setSelected(exp)
-    : undefined;
-
   return (
     <>
       {groupByMonth && grouped ? (
@@ -68,27 +88,13 @@ export function ExpensesListClient({
               {formatMonthYear(monthKey)}
             </div>
             <div className="flex flex-col gap-2">
-              {monthExpenses.map((exp) => (
-                <ExpenseItem
-                  key={exp.id}
-                  expense={exp}
-                  categoryMeta={categoryMap[exp.category]}
-                  onClick={handleClick ? () => handleClick(exp) : undefined}
-                />
-              ))}
+              {monthExpenses.map(renderItem)}
             </div>
           </div>
         ))
       ) : (
         <div className="flex flex-col gap-2">
-          {expenses.map((exp) => (
-            <ExpenseItem
-              key={exp.id}
-              expense={exp}
-              categoryMeta={categoryMap[exp.category]}
-              onClick={handleClick ? () => handleClick(exp) : undefined}
-            />
-          ))}
+          {expenses.map(renderItem)}
         </div>
       )}
 

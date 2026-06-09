@@ -1,6 +1,6 @@
 "use client";
 
-import { changeFlatPassword } from "@/actions/settings";
+import { changeFlatPassword, resetAllData } from "@/actions/settings";
 import { logoutAction } from "@/actions/auth";
 import { useTheme, type ThemePreference } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,12 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordMsg, setPasswordMsg] = useState<{
+    type: "error" | "success";
+    text: string;
+  } | null>(null);
+  const [showReset, setShowReset] = useState(false);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetMsg, setResetMsg] = useState<{
     type: "error" | "success";
     text: string;
   } | null>(null);
@@ -155,6 +161,95 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
         ) : (
           <p className="text-[12px] text-[var(--text-secondary)]">
             Sign in to change the flat password.
+          </p>
+        )}
+      </section>
+
+      {/* Reset data */}
+      <section className="card border-[var(--text-danger)]/30 p-4">
+        <h2 className="mb-1 text-[13px] font-semibold text-[var(--text-danger)]">
+          Reset all data
+        </h2>
+        <p className="mb-3 text-[12px] text-[var(--text-secondary)]">
+          Deletes every expense and settlement. Members and categories stay.
+        </p>
+        {canEdit ? (
+          <>
+            {!showReset ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-[var(--text-danger)]"
+                onClick={() => setShowReset(true)}
+              >
+                Reset all data
+              </Button>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="reset-password">Confirm with flat password</Label>
+                  <Input
+                    id="reset-password"
+                    type="password"
+                    value={resetPassword}
+                    onChange={(e) => setResetPassword(e.target.value)}
+                    placeholder="Enter password to confirm"
+                  />
+                </div>
+                {resetMsg && (
+                  <p
+                    className={cn(
+                      "text-xs",
+                      resetMsg.type === "error"
+                        ? "text-[var(--text-danger)]"
+                        : "text-[var(--text-success)]"
+                    )}
+                  >
+                    {resetMsg.text}
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowReset(false);
+                      setResetPassword("");
+                      setResetMsg(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-[var(--text-danger)] hover:opacity-90"
+                    disabled={isPending || !resetPassword}
+                    onClick={() => {
+                      setResetMsg(null);
+                      startTransition(async () => {
+                        const result = await resetAllData(resetPassword);
+                        if (result.error) {
+                          setResetMsg({ type: "error", text: result.error });
+                        } else {
+                          setResetMsg({
+                            type: "success",
+                            text: result.success ?? "Data cleared",
+                          });
+                          setResetPassword("");
+                          setShowReset(false);
+                        }
+                      });
+                    }}
+                  >
+                    {isPending ? "Resetting…" : "Confirm reset"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="text-[12px] text-[var(--text-secondary)]">
+            Sign in to reset data.
           </p>
         )}
       </section>
