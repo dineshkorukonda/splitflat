@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { expenseSplits, expenses } from "@/db/schema";
+import { expenseSplits, expenses, settlements } from "@/db/schema";
 import { requireAuth } from "@/lib/auth";
 import { roundMoney } from "@/lib/format";
 import { eq } from "drizzle-orm";
@@ -75,6 +75,7 @@ export async function updateExpense(id: string, data: ExpenseInput) {
   const shares = computeShares(data.amount, data.memberIds);
 
   await db.transaction(async (tx) => {
+    await tx.delete(settlements);
     await tx
       .update(expenses)
       .set({
@@ -102,6 +103,9 @@ export async function updateExpense(id: string, data: ExpenseInput) {
 
 export async function deleteExpense(id: string) {
   await requireAuth();
-  await db.delete(expenses).where(eq(expenses.id, id));
+  await db.transaction(async (tx) => {
+    await tx.delete(settlements);
+    await tx.delete(expenses).where(eq(expenses.id, id));
+  });
   revalidateExpensePaths();
 }

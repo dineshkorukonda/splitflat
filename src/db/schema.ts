@@ -75,11 +75,39 @@ export const settlements = pgTable("settlements", {
   note: text("note"),
 });
 
+export const personalDebts = pgTable("personal_debts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  lenderId: uuid("lender_id")
+    .notNull()
+    .references(() => members.id),
+  borrowerId: uuid("borrower_id")
+    .notNull()
+    .references(() => members.id),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const personalDebtPayments = pgTable("personal_debt_payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  debtId: uuid("debt_id")
+    .notNull()
+    .references(() => personalDebts.id, { onDelete: "cascade" }),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  paidAt: timestamp("paid_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const membersRelations = relations(members, ({ many }) => ({
   expensesPaid: many(expenses),
   splits: many(expenseSplits),
   settlementsFrom: many(settlements, { relationName: "fromMember" }),
   settlementsTo: many(settlements, { relationName: "toMember" }),
+  loansLent: many(personalDebts, { relationName: "lender" }),
+  loansBorrowed: many(personalDebts, { relationName: "borrower" }),
 }));
 
 export const expensesRelations = relations(expenses, ({ one, many }) => ({
@@ -113,3 +141,30 @@ export const settlementsRelations = relations(settlements, ({ one }) => ({
     relationName: "toMember",
   }),
 }));
+
+export const personalDebtsRelations = relations(
+  personalDebts,
+  ({ one, many }) => ({
+    lender: one(members, {
+      fields: [personalDebts.lenderId],
+      references: [members.id],
+      relationName: "lender",
+    }),
+    borrower: one(members, {
+      fields: [personalDebts.borrowerId],
+      references: [members.id],
+      relationName: "borrower",
+    }),
+    payments: many(personalDebtPayments),
+  })
+);
+
+export const personalDebtPaymentsRelations = relations(
+  personalDebtPayments,
+  ({ one }) => ({
+    debt: one(personalDebts, {
+      fields: [personalDebtPayments.debtId],
+      references: [personalDebts.id],
+    }),
+  })
+);

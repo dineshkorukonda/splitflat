@@ -1,7 +1,12 @@
 "use server";
 
 import { db } from "@/db";
-import { expenses, settlements } from "@/db/schema";
+import {
+  expenses,
+  personalDebtPayments,
+  personalDebts,
+  settlements,
+} from "@/db/schema";
 import { requireAuth, verifyPassword } from "@/lib/auth";
 import { setFlatPassword } from "@/lib/settings";
 import { revalidatePath } from "next/cache";
@@ -38,14 +43,19 @@ export async function resetAllData(
     return { error: "Incorrect password" };
   }
 
+  await db.delete(personalDebtPayments);
+  await db.delete(personalDebts);
   await db.delete(settlements);
   await db.delete(expenses);
 
   revalidatePath("/");
   revalidatePath("/expenses");
   revalidatePath("/settle");
+  revalidatePath("/loans");
   revalidatePath("/members");
   revalidatePath("/settings");
 
-  return { success: "All expenses and settlements cleared" };
+  return {
+    success: "All expenses, settlements, and personal loans cleared",
+  };
 }

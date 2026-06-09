@@ -166,7 +166,8 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
           Reset all data
         </h2>
         <p className="mb-3 text-[12px] text-[var(--text-secondary)]">
-          Deletes every expense and settlement. Members and categories stay.
+          Deletes every expense, settlement, and personal loan. Members and
+          categories stay.
         </p>
         {canEdit ? (
           <>
