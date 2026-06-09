@@ -33,7 +33,7 @@ async function sumByMember(
   return new Map(rows.map((r) => [r.memberId, parseAmount(r.total)]));
 }
 
-/** Replay the ledger: paid − owed − sent + received. Positive = owed money. */
+/** Replay the ledger: paid − owed + sent − received. Positive = owed money. */
 export async function computeBalances(): Promise<Record<string, number>> {
   const [allMembers, paidMap, owedMap, sentMap, receivedMap] = await Promise.all([
     db.select().from(members),
@@ -81,7 +81,7 @@ export async function computeBalances(): Promise<Record<string, number>> {
     const o = owedMap.get(member.id) ?? 0;
     const s = sentMap.get(member.id) ?? 0;
     const r = receivedMap.get(member.id) ?? 0;
-    balances[member.id] = roundMoney(p - o - s + r);
+    balances[member.id] = roundMoney(p - o + s - r);
   }
   return balances;
 }
@@ -133,7 +133,7 @@ export async function getMemberBalances(): Promise<MemberBalance[]> {
     const settlementsSent = sentMap.get(m.id) ?? 0;
     const settlementsReceived = receivedMap.get(m.id) ?? 0;
     const balance = roundMoney(
-      totalPaid - totalOwed - settlementsSent + settlementsReceived
+      totalPaid - totalOwed + settlementsSent - settlementsReceived
     );
     return {
       memberId: m.id,

@@ -1,4 +1,4 @@
-import { formatCurrency, formatCurrencyPlain } from "@/lib/format";
+import { formatCurrencyPlain } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type SummaryCardsProps = {
@@ -54,7 +54,9 @@ export function SummaryCards({
                 : "text-[var(--text-primary)]"
           )}
         >
-          {formatCurrency(netBalance)}
+          {netBalance > 0.01 || netBalance < -0.01
+            ? formatCurrencyPlain(Math.abs(netBalance))
+            : formatCurrencyPlain(0)}
         </div>
         <div className="mt-0.5 text-[11px] text-[var(--text-secondary)]">
           net balance

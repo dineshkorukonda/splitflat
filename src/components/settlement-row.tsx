@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { formatCurrencyPlain } from "@/lib/format";
 import { ArrowRight, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 type SettlementRowProps = {
@@ -37,6 +38,7 @@ export function SettlementRow({
   toColor,
   amount,
 }: SettlementRowProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
@@ -51,6 +53,7 @@ export function SettlementRow({
         await markSettled(fromId, toId, amount);
         setConfirmOpen(false);
         setHidden(true);
+        router.refresh();
       } catch (err) {
         setError(
           err instanceof Error
