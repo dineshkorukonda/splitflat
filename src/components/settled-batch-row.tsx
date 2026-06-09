@@ -5,8 +5,7 @@ import { MemberAvatar } from "@/components/member-avatar";
 import { Button } from "@/components/ui/button";
 import { formatCurrencyPlain } from "@/lib/format";
 import { format } from "date-fns";
-import { ArrowRight, CheckCircle2, Lock, Undo2 } from "lucide-react";
-import Link from "next/link";
+import { ArrowRight, CheckCircle2, Undo2 } from "lucide-react";
 import { useTransition } from "react";
 
 type SettledBatchRowProps = {
@@ -19,7 +18,6 @@ type SettledBatchRowProps = {
   toColor: string;
   amount: number;
   settledAt: Date;
-  canEdit: boolean;
 };
 
 export function SettledBatchRow({
@@ -32,7 +30,6 @@ export function SettledBatchRow({
   toColor,
   amount,
   settledAt,
-  canEdit,
 }: SettledBatchRowProps) {
   const [isPending, startTransition] = useTransition();
 
@@ -65,25 +62,16 @@ export function SettledBatchRow({
           </span>
         </div>
       </div>
-      {canEdit ? (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleUnsettle}
-          disabled={isPending}
-          className="shrink-0 gap-1"
-        >
-          <Undo2 className="h-3 w-3" />
-          {isPending ? "Undoing…" : "Unsettle"}
-        </Button>
-      ) : (
-        <Button variant="outline" size="sm" className="shrink-0 gap-1" asChild>
-          <Link href="/login">
-            <Lock className="h-3 w-3" />
-            Sign in
-          </Link>
-        </Button>
-      )}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleUnsettle}
+        disabled={isPending}
+        className="shrink-0 gap-1"
+      >
+        <Undo2 className="h-3 w-3" />
+        {isPending ? "Undoing…" : "Unsettle"}
+      </Button>
     </div>
   );
 }

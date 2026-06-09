@@ -70,11 +70,6 @@ export function ExpensesListClient({
         <p className="text-[13px] text-[var(--text-secondary)]">
           No expenses yet.
         </p>
-        {!canEdit && (
-          <p className="text-[12px] text-[var(--text-secondary)]">
-            Sign in to add the first one.
-          </p>
-        )}
       </div>
     );
   }

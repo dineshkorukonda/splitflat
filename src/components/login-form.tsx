@@ -18,7 +18,7 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
           id="password"
           name="password"
           type="password"
-          placeholder="Enter shared password"
+          placeholder="Enter password"
           required
           autoFocus
         />
@@ -27,7 +27,7 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
         <p className="text-xs text-[var(--text-danger)]">{state.error}</p>
       )}
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Signing in…" : "Sign in to edit"}
+        {isPending ? "Unlocking…" : "Unlock"}
       </Button>
     </form>
   );

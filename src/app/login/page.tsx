@@ -22,9 +22,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <div className="flex justify-center">
             <AppTitle />
           </div>
-          <p className="mt-3 text-[13px] leading-relaxed text-[var(--text-secondary)]">
-            Viewing is open to everyone. Sign in with the shared flat password to
-            add expenses, settle up, and edit icons.
+          <p className="mt-3 text-[13px] text-[var(--text-secondary)]">
+            Enter the flat password to continue
           </p>
         </div>
         <LoginForm redirectTo={redirectTo} />

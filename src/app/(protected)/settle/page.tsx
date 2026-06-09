@@ -1,14 +1,12 @@
 import { SettledBatchRow } from "@/components/settled-batch-row";
 import { SettlementRow } from "@/components/settlement-row";
-import { isAuthenticated } from "@/lib/auth";
 import { getMinimizedTransfers, getSettledBatches } from "@/lib/queries";
 import { CheckCircle2 } from "lucide-react";
 
 export default async function SettlePage() {
-  const [transfers, settledBatches, canEdit] = await Promise.all([
+  const [transfers, settledBatches] = await Promise.all([
     getMinimizedTransfers(),
     getSettledBatches(),
-    isAuthenticated(),
   ]);
 
   const allClear = transfers.length === 0 && settledBatches.length === 0;
@@ -53,7 +51,6 @@ export default async function SettlePage() {
                 toEmoji={t.toEmoji}
                 toColor={t.toColor}
                 amount={t.amount}
-                canEdit={canEdit}
               />
             ))}
           </div>
@@ -78,7 +75,6 @@ export default async function SettlePage() {
                 toColor={batch.toColor}
                 amount={batch.amount}
                 settledAt={batch.settledAt}
-                canEdit={canEdit}
               />
             ))}
           </div>

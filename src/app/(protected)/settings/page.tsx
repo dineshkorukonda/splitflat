@@ -1,9 +1,6 @@
 import { SettingsPanel } from "@/components/settings-panel";
-import { isAuthenticated } from "@/lib/auth";
 
 export default async function SettingsPage() {
-  const canEdit = await isAuthenticated();
-
   return (
     <>
       <div className="mb-4">
@@ -14,7 +11,7 @@ export default async function SettingsPage() {
           Theme, flat password, and account
         </p>
       </div>
-      <SettingsPanel canEdit={canEdit} />
+      <SettingsPanel canEdit />
     </>
   );
 }

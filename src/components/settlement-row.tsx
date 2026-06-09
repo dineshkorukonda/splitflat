@@ -4,8 +4,7 @@ import { markSettled } from "@/actions/settlements";
 import { MemberAvatar } from "@/components/member-avatar";
 import { Button } from "@/components/ui/button";
 import { formatCurrencyPlain } from "@/lib/format";
-import { ArrowRight, Lock } from "lucide-react";
-import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { useTransition } from "react";
 
 type SettlementRowProps = {
@@ -18,7 +17,6 @@ type SettlementRowProps = {
   toEmoji: string;
   toColor: string;
   amount: number;
-  canEdit: boolean;
 };
 
 export function SettlementRow({
@@ -31,7 +29,6 @@ export function SettlementRow({
   toEmoji,
   toColor,
   amount,
-  canEdit,
 }: SettlementRowProps) {
   const [isPending, startTransition] = useTransition();
 
@@ -58,24 +55,15 @@ export function SettlementRow({
           {formatCurrencyPlain(amount)}
         </div>
       </div>
-      {canEdit ? (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleSettle}
-          disabled={isPending}
-          className="shrink-0"
-        >
-          {isPending ? "Saving…" : "Mark settled"}
-        </Button>
-      ) : (
-        <Button variant="outline" size="sm" className="shrink-0 gap-1" asChild>
-          <Link href="/login">
-            <Lock className="h-3 w-3" />
-            Sign in
-          </Link>
-        </Button>
-      )}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleSettle}
+        disabled={isPending}
+        className="shrink-0"
+      >
+        {isPending ? "Saving…" : "Mark settled"}
+      </Button>
     </div>
   );
 }

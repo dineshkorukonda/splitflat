@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { LogIn, LogOut, Monitor, Moon, Sun } from "lucide-react";
-import Link from "next/link";
+import { LogOut, Monitor, Moon, Sun } from "lucide-react";
 import { useState, useTransition } from "react";
 
 const THEME_OPTIONS: {
@@ -158,11 +157,7 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
               {isPending ? "Updating…" : "Update password"}
             </Button>
           </form>
-        ) : (
-          <p className="text-[12px] text-[var(--text-secondary)]">
-            Sign in to change the flat password.
-          </p>
-        )}
+        ) : null}
       </section>
 
       {/* Reset data */}
@@ -247,11 +242,7 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
               </div>
             )}
           </>
-        ) : (
-          <p className="text-[12px] text-[var(--text-secondary)]">
-            Sign in to reset data.
-          </p>
-        )}
+        ) : null}
       </section>
 
       {/* Account */}
@@ -260,29 +251,18 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
           Account
         </h2>
         <p className="mb-3 text-[12px] text-[var(--text-secondary)]">
-          {canEdit
-            ? "You are signed in and can add or edit expenses."
-            : "You are viewing in read-only mode."}
+          Signed in — you can add and edit expenses.
         </p>
-        {canEdit ? (
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            disabled={isPending}
-            onClick={() => startTransition(() => logoutAction())}
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            Sign out
-          </Button>
-        ) : (
-          <Button variant="default" size="sm" className="gap-1.5" asChild>
-            <Link href="/login?from=/settings">
-              <LogIn className="h-3.5 w-3.5" />
-              Sign in
-            </Link>
-          </Button>
-        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          disabled={isPending}
+          onClick={() => startTransition(() => logoutAction())}
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          Sign out
+        </Button>
       </section>
     </div>
   );

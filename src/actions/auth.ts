@@ -24,11 +24,19 @@ export async function loginAction(
     return { error: "Incorrect password" };
   }
 
-  await setSessionCookie();
+  try {
+    await setSessionCookie();
+  } catch {
+    return {
+      error:
+        "Sign-in is not configured on the server. Set APP_SECRET (32+ chars) in environment variables.",
+    };
+  }
+
   redirect(redirectTo);
 }
 
 export async function logoutAction() {
   await clearSessionCookie();
-  redirect("/settings");
+  redirect("/login");
 }

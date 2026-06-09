@@ -7,7 +7,7 @@ import { ViewAsSelector } from "@/components/view-as-selector";
 import { Button } from "@/components/ui/button";
 import type { CategoryOption, Member } from "@/lib/queries";
 import { cn } from "@/lib/utils";
-import { Lock, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -22,16 +22,10 @@ const TABS = [
 type AppShellProps = {
   members: Member[];
   categories: CategoryOption[];
-  canEdit: boolean;
   children: React.ReactNode;
 };
 
-export function AppShell({
-  members,
-  categories,
-  canEdit,
-  children,
-}: AppShellProps) {
+export function AppShell({ members, categories, children }: AppShellProps) {
   const pathname = usePathname();
   const [showForm, setShowForm] = useState(false);
 
@@ -39,11 +33,6 @@ export function AppShell({
     pathname === "/expenses"
       ? "/"
       : TABS.find((t) => t.href === pathname)?.href ?? "/";
-
-  const handleAddClick = () => {
-    if (!canEdit) return;
-    setShowForm((v) => !v);
-  };
 
   return (
     <ViewAsProvider members={members}>
@@ -59,23 +48,15 @@ export function AppShell({
                 <ViewAsSelector members={members} />
               </div>
             </div>
-            <div className="flex shrink-0 items-center">
-              {canEdit ? (
-                <Button size="sm" className="gap-1.5" onClick={handleAddClick}>
-                  <Plus className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Add expense</span>
-                  <span className="sm:hidden">Add</span>
-                </Button>
-              ) : (
-                <Button size="sm" variant="outline" className="gap-1.5" asChild>
-                  <Link href="/login">
-                    <Lock className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Add expense</span>
-                    <span className="sm:hidden">Add</span>
-                  </Link>
-                </Button>
-              )}
-            </div>
+            <Button
+              size="sm"
+              className="gap-1.5 shrink-0"
+              onClick={() => setShowForm((v) => !v)}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Add expense</span>
+              <span className="sm:hidden">Add</span>
+            </Button>
           </header>
 
           <nav className="flex overflow-x-auto border-b border-[var(--border-tertiary)] bg-[var(--bg-primary)] px-5">
@@ -96,18 +77,7 @@ export function AppShell({
           </nav>
 
           <main className="min-h-[420px] bg-[var(--bg-tertiary)] px-5 py-5">
-            {!canEdit && pathname !== "/settings" && (
-              <div className="mb-4 flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-tertiary)] bg-[var(--bg-primary)] px-3.5 py-2.5 text-[12px] text-[var(--text-secondary)]">
-                <span>View-only mode — sign in to add or edit</span>
-                <Link
-                  href="/login"
-                  className="shrink-0 font-medium text-[var(--text-primary)] hover:underline"
-                >
-                  Sign in
-                </Link>
-              </div>
-            )}
-            {showForm && canEdit && (
+            {showForm && (
               <AddExpenseForm
                 members={members}
                 categories={categories}

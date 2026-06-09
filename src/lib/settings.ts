@@ -5,12 +5,16 @@ import { eq } from "drizzle-orm";
 const FLAT_PASSWORD_KEY = "flat_password";
 
 export async function getSetting(key: string): Promise<string | null> {
-  const rows = await db
-    .select()
-    .from(appSettings)
-    .where(eq(appSettings.key, key))
-    .limit(1);
-  return rows[0]?.value ?? null;
+  try {
+    const rows = await db
+      .select()
+      .from(appSettings)
+      .where(eq(appSettings.key, key))
+      .limit(1);
+    return rows[0]?.value ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function setSetting(key: string, value: string): Promise<void> {

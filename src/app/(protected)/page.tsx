@@ -1,6 +1,5 @@
 import { DashboardClient } from "@/components/dashboard-client";
 import { ExpensesListClient } from "@/components/expenses-list-client";
-import { isAuthenticated } from "@/lib/auth";
 import {
   getCategories,
   getExpenses,
@@ -18,14 +17,13 @@ export default async function DashboardPage() {
   const monthEnd = format(now, "yyyy-MM-dd");
   const monthLabel = format(now, "MMMM yyyy");
 
-  const [members, categories, recentExpenses, totalThisMonth, balances, canEdit] =
+  const [members, categories, recentExpenses, totalThisMonth, balances] =
     await Promise.all([
       getMembers(),
       getCategories(),
       getExpenses({ limit: 10 }),
       getMonthlyTotal(monthStart, monthEnd),
       getMemberBalances(),
-      isAuthenticated(),
     ]);
 
   const shares = await Promise.all(
@@ -67,7 +65,7 @@ export default async function DashboardPage() {
         expenses={recentExpenses}
         members={members}
         categories={categories}
-        canEdit={canEdit}
+        canEdit
       />
     </>
   );
