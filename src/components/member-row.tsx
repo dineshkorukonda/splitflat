@@ -2,6 +2,7 @@ import { MemberIconEditor } from "@/components/member-icon-editor";
 import { formatCurrency } from "@/lib/format";
 import type { MemberBalance } from "@/lib/balance";
 import { cn } from "@/lib/utils";
+import { DynamicIcon } from "@/components/ui/dynamic-icon";
 
 type MemberRowProps = {
   member: MemberBalance;
@@ -20,8 +21,9 @@ export function MemberRow({ member, canEdit }: MemberRowProps) {
     <div className="card card-interactive flex items-center gap-3 px-4 py-3.5">
       <MemberIconEditor member={member} canEdit={canEdit} />
       <div className="min-w-0 flex-1">
-        <div className="text-[13px] font-medium text-[var(--text-primary)]">
-          {member.emoji} {member.name}
+        <div className="text-[13px] font-medium text-[var(--text-primary)] flex items-center gap-1.5">
+          <DynamicIcon name={member.iconName} className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
+          <span>{member.name}</span>
         </div>
         <div className="mt-0.5 text-[11px] text-[var(--text-secondary)]">
           Paid ₹{member.totalPaid.toLocaleString("en-IN")} · {balancePart}

@@ -12,7 +12,7 @@ export function SplitPill({ members }: SplitPillProps) {
         <MemberAvatar
           key={m.id}
           name={m.name}
-          emoji={m.emoji}
+          iconName={m.iconName}
           colorCode={m.colorCode}
           className="!mr-0 !border-0"
         />

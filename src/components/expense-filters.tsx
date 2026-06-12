@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DynamicIcon } from "@/components/ui/dynamic-icon";
 import type { CategoryOption, Member } from "@/lib/queries";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -42,7 +43,10 @@ export function ExpenseFilters({ members, categories }: ExpenseFiltersProps) {
           <SelectItem value="all">All members</SelectItem>
           {members.map((m) => (
             <SelectItem key={m.id} value={m.id}>
-              {m.emoji} {m.name}
+              <span className="flex items-center gap-1.5">
+                <DynamicIcon name={m.iconName} className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
+                {m.name}
+              </span>
             </SelectItem>
           ))}
         </SelectContent>
@@ -59,7 +63,10 @@ export function ExpenseFilters({ members, categories }: ExpenseFiltersProps) {
           <SelectItem value="all">All categories</SelectItem>
           {categories.map((c) => (
             <SelectItem key={c.slug} value={c.slug}>
-              {c.emoji} {c.label}
+              <span className="flex items-center gap-1.5">
+                <DynamicIcon name={c.iconName} className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
+                {c.label}
+              </span>
             </SelectItem>
           ))}
         </SelectContent>

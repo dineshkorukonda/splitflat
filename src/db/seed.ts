@@ -42,8 +42,9 @@ async function seed() {
   await db.insert(members).values(
     FLATMATES.map((m) => ({
       name: m.name,
-      emoji: m.emoji,
+      iconName: m.iconName,
       colorCode: m.colorCode,
+      passcode: m.passcode,
     }))
   );
 
@@ -60,7 +61,7 @@ async function seedCategories(db: ReturnType<typeof drizzle>) {
     BUILTIN_CATEGORIES.map((c) => ({
       slug: c.slug,
       label: c.label,
-      emoji: c.emoji,
+      iconName: c.iconName,
     }))
   );
 }

@@ -1,6 +1,9 @@
 import { SettingsPanel } from "@/components/settings-panel";
+import { getMembers } from "@/lib/queries";
 
 export default async function SettingsPage() {
+  const members = await getMembers();
+
   return (
     <>
       <div className="mb-4">
@@ -8,10 +11,10 @@ export default async function SettingsPage() {
           Settings
         </h1>
         <p className="mt-1 text-[12px] text-[var(--text-secondary)]">
-          Theme, flat password, and account
+          Theme, passwords, and account settings
         </p>
       </div>
-      <SettingsPanel canEdit />
+      <SettingsPanel canEdit members={members} />
     </>
   );
 }

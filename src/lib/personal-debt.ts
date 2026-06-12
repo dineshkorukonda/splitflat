@@ -3,14 +3,20 @@ import { members, personalDebtPayments, personalDebts } from "@/db/schema";
 import { parseAmount, roundMoney } from "@/lib/format";
 import { desc, eq, sql } from "drizzle-orm";
 
+export type PersonalDebtRepayment = {
+  id: string;
+  amount: number;
+  paidAt: string;
+};
+
 export type PersonalDebtWithDetails = {
   id: string;
   lenderId: string;
   borrowerId: string;
   lenderName: string;
   borrowerName: string;
-  lenderEmoji: string;
-  borrowerEmoji: string;
+  lenderIcon: string;
+  borrowerIcon: string;
   lenderColor: string;
   borrowerColor: string;
   principal: number;
@@ -18,6 +24,7 @@ export type PersonalDebtWithDetails = {
   remaining: number;
   note: string | null;
   createdAt: Date;
+  payments: PersonalDebtRepayment[];
 };
 
 export async function getPersonalDebts(): Promise<PersonalDebtWithDetails[]> {
@@ -43,32 +50,48 @@ export async function getPersonalDebts(): Promise<PersonalDebtWithDetails[]> {
     paymentRows.map((r) => [r.debtId, parseAmount(r.total)])
   );
 
-  return rows
-    .map((row) => {
-      const lender = memberMap.get(row.lenderId)!;
-      const borrower = memberMap.get(row.borrowerId)!;
-      const principal = parseAmount(row.amount);
-      const repaid = repaidMap.get(row.id) ?? 0;
-      const remaining = roundMoney(principal - repaid);
+  const allPayments = await db
+    .select()
+    .from(personalDebtPayments)
+    .orderBy(desc(personalDebtPayments.paidAt));
 
-      return {
-        id: row.id,
-        lenderId: row.lenderId,
-        borrowerId: row.borrowerId,
-        lenderName: lender.name,
-        borrowerName: borrower.name,
-        lenderEmoji: lender.emoji,
-        borrowerEmoji: borrower.emoji,
-        lenderColor: lender.colorCode,
-        borrowerColor: borrower.colorCode,
-        principal,
-        repaid,
-        remaining,
-        note: row.note,
-        createdAt: row.createdAt,
-      };
-    })
-    .filter((d) => d.remaining > 0.01);
+  const paymentsByDebt = new Map<string, typeof allPayments>();
+  for (const pay of allPayments) {
+    const existing = paymentsByDebt.get(pay.debtId) ?? [];
+    existing.push(pay);
+    paymentsByDebt.set(pay.debtId, existing);
+  }
+
+  return rows.map((row) => {
+    const lender = memberMap.get(row.lenderId)!;
+    const borrower = memberMap.get(row.borrowerId)!;
+    const principal = parseAmount(row.amount);
+    const repaid = repaidMap.get(row.id) ?? 0;
+    const remaining = roundMoney(principal - repaid);
+    const debtPayments = (paymentsByDebt.get(row.id) ?? []).map((p) => ({
+      id: p.id,
+      amount: parseAmount(p.amount),
+      paidAt: p.paidAt.toISOString(),
+    }));
+
+    return {
+      id: row.id,
+      lenderId: row.lenderId,
+      borrowerId: row.borrowerId,
+      lenderName: lender.name,
+      borrowerName: borrower.name,
+      lenderIcon: lender.iconName,
+      borrowerIcon: borrower.iconName,
+      lenderColor: lender.colorCode,
+      borrowerColor: borrower.colorCode,
+      principal,
+      repaid,
+      remaining,
+      note: row.note,
+      createdAt: row.createdAt,
+      payments: debtPayments,
+    };
+  });
 }
 
 export async function getPersonalDebtRemaining(

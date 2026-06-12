@@ -3,6 +3,7 @@
 import { db } from "@/db";
 import {
   expenses,
+  members,
   personalDebtPayments,
   personalDebts,
   settlements,
@@ -35,12 +36,24 @@ export async function changeFlatPassword(
 }
 
 export async function resetAllData(
-  password: string
+  password: string,
+  userPasscodes: Record<string, string>
 ): Promise<{ error?: string; success?: string }> {
   await requireAuth();
 
   if (!(await verifyPassword(password))) {
-    return { error: "Incorrect password" };
+    return { error: "Incorrect flat password" };
+  }
+
+  // Fetch all members
+  const allMembers = await db.select().from(members);
+
+  // Verify passcode for each member
+  for (const m of allMembers) {
+    const code = userPasscodes[m.id] ?? "";
+    if (m.passcode !== code) {
+      return { error: `Incorrect passcode for ${m.name}` };
+    }
   }
 
   await db.delete(personalDebtPayments);
@@ -52,7 +65,6 @@ export async function resetAllData(
   revalidatePath("/expenses");
   revalidatePath("/settle");
   revalidatePath("/loans");
-  revalidatePath("/members");
   revalidatePath("/settings");
 
   return {

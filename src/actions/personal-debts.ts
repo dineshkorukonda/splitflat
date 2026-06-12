@@ -70,3 +70,18 @@ export async function deletePersonalLoan(debtId: string) {
   await db.delete(personalDebts).where(eq(personalDebts.id, debtId));
   revalidateLoanPaths();
 }
+
+export async function deletePersonalLoanRepayment(paymentId: string) {
+  await requireAuth();
+
+  const [payment] = await db
+    .select()
+    .from(personalDebtPayments)
+    .where(eq(personalDebtPayments.id, paymentId))
+    .limit(1);
+
+  if (!payment) throw new Error("Repayment not found");
+
+  await db.delete(personalDebtPayments).where(eq(personalDebtPayments.id, paymentId));
+  revalidateLoanPaths();
+}

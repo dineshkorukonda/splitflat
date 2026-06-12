@@ -11,8 +11,9 @@ import {
 export const members = pgTable("members", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
-  emoji: text("emoji").notNull().default("👤"),
+  iconName: text("icon_name").notNull().default("User"),
   colorCode: text("color_code").notNull(),
+  passcode: text("passcode").notNull().default("1234"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -29,7 +30,7 @@ export const appSettings = pgTable("app_settings", {
 export const categories = pgTable("categories", {
   slug: text("slug").primaryKey(),
   label: text("label").notNull(),
-  emoji: text("emoji").notNull(),
+  iconName: text("icon_name").notNull().default("Package"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

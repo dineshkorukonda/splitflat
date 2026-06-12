@@ -1,7 +1,7 @@
 export type CategoryMeta = {
   slug: string;
   label: string;
-  emoji: string;
+  iconName: string;
   iconClass: string;
 };
 
@@ -9,31 +9,31 @@ export const BUILTIN_CATEGORIES: CategoryMeta[] = [
   {
     slug: "food",
     label: "Food & groceries",
-    emoji: "🍕",
+    iconName: "Pizza",
     iconClass: "bg-[var(--bg-warning)]",
   },
   {
     slug: "home",
     label: "Rent & maintenance",
-    emoji: "🏠",
+    iconName: "Home",
     iconClass: "bg-[var(--bg-info)]",
   },
   {
     slug: "utilities",
     label: "Utilities",
-    emoji: "⚡",
+    iconName: "Zap",
     iconClass: "bg-[var(--bg-success)]",
   },
   {
     slug: "supplies",
     label: "Household supplies",
-    emoji: "🧹",
+    iconName: "Brush",
     iconClass: "bg-[var(--bg-secondary)]",
   },
   {
     slug: "other",
     label: "Other",
-    emoji: "📦",
+    iconName: "Package",
     iconClass: "bg-[var(--bg-secondary)]",
   },
 ];
@@ -54,7 +54,7 @@ export function getCategoryMeta(
     BUILTIN_MAP[slug] ?? {
       slug: "other",
       label: "Other",
-      emoji: "📦",
+      iconName: "Package",
       iconClass: "bg-[var(--bg-secondary)]",
     }
   );

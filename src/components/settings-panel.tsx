@@ -9,6 +9,11 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { LogOut, Monitor, Moon, Sun } from "lucide-react";
 import { useState, useTransition } from "react";
+import { useViewAs } from "@/components/view-as-context";
+import { updateMemberIcon, updateMemberPasscode } from "@/actions/members";
+import { DynamicIcon } from "@/components/ui/dynamic-icon";
+import type { Member } from "@/lib/queries";
+import { useRouter } from "next/navigation";
 
 const THEME_OPTIONS: {
   value: ThemePreference;
@@ -22,12 +27,18 @@ const THEME_OPTIONS: {
 
 type SettingsPanelProps = {
   canEdit: boolean;
+  members: Member[];
 };
 
-export function SettingsPanel({ canEdit }: SettingsPanelProps) {
+export function SettingsPanel({ canEdit, members }: SettingsPanelProps) {
   const { preference, setPreference, ready } = useTheme();
+  const { memberId } = useViewAs();
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
+  const activeMember = members.find((m) => m.id === memberId);
+
+  // Flat password form state
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -35,12 +46,39 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
     type: "error" | "success";
     text: string;
   } | null>(null);
+
+  // User passcode form state
+  const [userCurrentPasscode, setUserCurrentPasscode] = useState("");
+  const [userNewPasscode, setUserNewPasscode] = useState("");
+  const [userConfirmPasscode, setUserConfirmPasscode] = useState("");
+  const [userPasscodeMsg, setUserPasscodeMsg] = useState<{
+    type: "error" | "success";
+    text: string;
+  } | null>(null);
+
+  // Reset data form state
   const [showReset, setShowReset] = useState(false);
   const [resetPassword, setResetPassword] = useState("");
+  const [userPasscodes, setUserPasscodes] = useState<Record<string, string>>({});
   const [resetMsg, setResetMsg] = useState<{
     type: "error" | "success";
     text: string;
   } | null>(null);
+
+  const AVAILABLE_ICONS = [
+    "User",
+    "Coffee",
+    "Gamepad2",
+    "Music",
+    "Laptop",
+    "Bike",
+    "Sparkles",
+    "Camera",
+    "BookOpen",
+    "Heart",
+    "Smile",
+    "Star",
+  ];
 
   const handlePasswordChange = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +103,41 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
     });
   };
 
+  const handleIconSelect = (iconName: string) => {
+    startTransition(async () => {
+      try {
+        await updateMemberIcon(memberId, iconName);
+        router.refresh();
+      } catch (err) {
+        console.error("Failed to update icon", err);
+      }
+    });
+  };
+
+  const handleUserPasscodeChange = (e: React.FormEvent) => {
+    e.preventDefault();
+    setUserPasscodeMsg(null);
+    if (userNewPasscode !== userConfirmPasscode) {
+      setUserPasscodeMsg({ type: "error", text: "New passcodes do not match" });
+      return;
+    }
+    startTransition(async () => {
+      try {
+        await updateMemberPasscode(memberId, userCurrentPasscode, userNewPasscode);
+        setUserPasscodeMsg({ type: "success", text: "Passcode updated successfully" });
+        setUserCurrentPasscode("");
+        setUserNewPasscode("");
+        setUserConfirmPasscode("");
+        router.refresh();
+      } catch (err) {
+        setUserPasscodeMsg({
+          type: "error",
+          text: err instanceof Error ? err.message : "Failed to update passcode",
+        });
+      }
+    });
+  };
+
   return (
     <div className="flex flex-col gap-4">
       {/* Appearance */}
@@ -85,7 +158,7 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
                 type="button"
                 onClick={() => setPreference(opt.value)}
                 className={cn(
-                  "flex flex-col items-center gap-1.5 rounded-[var(--radius-md)] border px-3 py-3 text-[12px] transition-colors",
+                  "flex flex-col items-center gap-1.5 rounded-[var(--radius-md)] border px-3 py-3 text-[12px] transition-colors cursor-pointer",
                   active
                     ? "border-[var(--text-primary)] bg-[var(--bg-secondary)] font-medium text-[var(--text-primary)]"
                     : "border-[var(--border-tertiary)] text-[var(--text-secondary)] hover:border-[var(--border-secondary)] hover:text-[var(--text-primary)]"
@@ -99,7 +172,103 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
         </div>
       </section>
 
-      {/* Password */}
+      {/* Roommate Settings */}
+      {activeMember && (
+        <section className="card p-4">
+          <h2 className="mb-1 text-[13px] font-semibold text-[var(--text-primary)]">
+            Roommate Settings ({activeMember.name})
+          </h2>
+          <p className="mb-4 text-[12px] text-[var(--text-secondary)]">
+            Change your personal avatar icon and passcode.
+          </p>
+
+          <div className="space-y-4">
+            {/* Icon Picker */}
+            <div>
+              <Label className="block mb-2">Your icon</Label>
+              <div className="grid grid-cols-6 gap-2">
+                {AVAILABLE_ICONS.map((icon) => {
+                  const active = activeMember.iconName === icon;
+                  return (
+                    <button
+                      key={icon}
+                      type="button"
+                      onClick={() => handleIconSelect(icon)}
+                      className={cn(
+                        "flex h-10 w-10 items-center justify-center rounded-md border p-1 transition-colors cursor-pointer mx-auto",
+                        active
+                          ? "border-[var(--text-primary)] bg-[var(--bg-secondary)] text-[var(--text-primary)]"
+                          : "border-[var(--border-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]/50 hover:text-[var(--text-primary)]"
+                      )}
+                      disabled={isPending}
+                    >
+                      <DynamicIcon name={icon} className="h-4.5 w-4.5" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Passcode Form */}
+            <form onSubmit={handleUserPasscodeChange} className="space-y-3 pt-4 border-t border-[var(--border-tertiary)]/50">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                Change your passcode
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="user-current-passcode">Current passcode</Label>
+                <Input
+                  id="user-current-passcode"
+                  type="password"
+                  value={userCurrentPasscode}
+                  onChange={(e) => setUserCurrentPasscode(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="user-new-passcode">New passcode</Label>
+                <Input
+                  id="user-new-passcode"
+                  type="password"
+                  value={userNewPasscode}
+                  onChange={(e) => setUserNewPasscode(e.target.value)}
+                  required
+                  minLength={4}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="user-confirm-passcode">Confirm new passcode</Label>
+                <Input
+                  id="user-confirm-passcode"
+                  type="password"
+                  value={userConfirmPasscode}
+                  onChange={(e) => setUserConfirmPasscode(e.target.value)}
+                  required
+                  minLength={4}
+                />
+              </div>
+              {userPasscodeMsg && (
+                <p
+                  className={cn(
+                    "text-xs",
+                    userPasscodeMsg.type === "error"
+                      ? "text-[var(--text-danger)]"
+                      : "text-[var(--text-success)]"
+                  )}
+                >
+                  {userPasscodeMsg.text}
+                </p>
+              )}
+              <Button type="submit" size="sm" disabled={isPending}>
+                {isPending ? "Updating…" : "Update passcode"}
+              </Button>
+            </form>
+          </div>
+        </section>
+      )}
+
+
+
+      {/* Flat Password */}
       <section className="card p-4">
         <h2 className="mb-1 text-[13px] font-semibold text-[var(--text-primary)]">
           Flat password
@@ -110,7 +279,7 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
         {canEdit ? (
           <form onSubmit={handlePasswordChange} className="space-y-3">
             <div className="flex flex-col gap-1">
-              <Label htmlFor="current-password">Current password</Label>
+              <Label htmlFor="current-password">Current flat password</Label>
               <Input
                 id="current-password"
                 type="password"
@@ -120,7 +289,7 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <Label htmlFor="new-password">New password</Label>
+              <Label htmlFor="new-password">New flat password</Label>
               <Input
                 id="new-password"
                 type="password"
@@ -131,7 +300,7 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <Label htmlFor="confirm-password">Confirm new password</Label>
+              <Label htmlFor="confirm-password">Confirm new flat password</Label>
               <Input
                 id="confirm-password"
                 type="password"
@@ -154,7 +323,7 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
               </p>
             )}
             <Button type="submit" size="sm" disabled={isPending}>
-              {isPending ? "Updating…" : "Update password"}
+              {isPending ? "Updating…" : "Update flat password"}
             </Button>
           </form>
         ) : null}
@@ -181,7 +350,7 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
                 Reset all data
               </Button>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="flex flex-col gap-1">
                   <Label htmlFor="reset-password">Confirm with flat password</Label>
                   <Input
@@ -189,9 +358,33 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
                     type="password"
                     value={resetPassword}
                     onChange={(e) => setResetPassword(e.target.value)}
-                    placeholder="Enter password to confirm"
+                    placeholder="Enter flat password"
                   />
                 </div>
+
+                <div className="border border-[var(--border-tertiary)]/60 rounded-[var(--radius-md)] p-3 bg-[var(--bg-tertiary)]/50 space-y-3">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                    Roommate Authorizations (All passcodes required)
+                  </div>
+                  {members.map((m) => (
+                    <div key={m.id} className="flex flex-col gap-1">
+                      <Label htmlFor={`passcode-${m.id}`}>{m.name}&apos;s passcode</Label>
+                      <Input
+                        id={`passcode-${m.id}`}
+                        type="password"
+                        placeholder={`Enter ${m.name}'s passcode`}
+                        value={userPasscodes[m.id] ?? ""}
+                        onChange={(e) =>
+                          setUserPasscodes((prev) => ({
+                            ...prev,
+                            [m.id]: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+
                 {resetMsg && (
                   <p
                     className={cn(
@@ -211,6 +404,7 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
                     onClick={() => {
                       setShowReset(false);
                       setResetPassword("");
+                      setUserPasscodes({});
                       setResetMsg(null);
                     }}
                   >
@@ -223,7 +417,7 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
                     onClick={() => {
                       setResetMsg(null);
                       startTransition(async () => {
-                        const result = await resetAllData(resetPassword);
+                        const result = await resetAllData(resetPassword, userPasscodes);
                         if (result.error) {
                           setResetMsg({ type: "error", text: result.error });
                         } else {
@@ -232,6 +426,7 @@ export function SettingsPanel({ canEdit }: SettingsPanelProps) {
                             text: result.success ?? "Data cleared",
                           });
                           setResetPassword("");
+                          setUserPasscodes({});
                           setShowReset(false);
                         }
                       });

@@ -1,6 +1,6 @@
 "use client";
 
-import { repayPersonalLoan } from "@/actions/personal-debts";
+import { repayPersonalLoan, deletePersonalLoan, deletePersonalLoanRepayment } from "@/actions/personal-debts";
 import { MemberAvatar } from "@/components/member-avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,9 +13,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatCurrencyPlain } from "@/lib/format";
+import { useViewAs } from "@/components/view-as-context";
 import type { PersonalDebtWithDetails } from "@/lib/personal-debt";
 import { format } from "date-fns";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -25,13 +26,14 @@ type LoanRowProps = {
 
 export function LoanRow({ debt }: LoanRowProps) {
   const router = useRouter();
+  const { memberId } = useViewAs();
   const [isPending, startTransition] = useTransition();
   const [repayOpen, setRepayOpen] = useState(false);
   const [repayAmount, setRepayAmount] = useState(debt.remaining.toString());
   const [error, setError] = useState<string | null>(null);
-  const [hidden, setHidden] = useState(false);
 
-  if (hidden) return null;
+  const isBorrower = memberId === debt.borrowerId;
+  const canRepay = isBorrower && debt.remaining > 0.01;
 
   const handleRepay = () => {
     setError(null);
@@ -45,12 +47,33 @@ export function LoanRow({ debt }: LoanRowProps) {
       try {
         await repayPersonalLoan(debt.id, parsed);
         setRepayOpen(false);
-        if (parsed >= debt.remaining - 0.01) {
-          setHidden(true);
-        }
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Repayment failed");
+      }
+    });
+  };
+
+  const handleDeleteLoan = () => {
+    if (!confirm("Are you sure you want to delete this loan? This will delete all payments associated with it.")) return;
+    startTransition(async () => {
+      try {
+        await deletePersonalLoan(debt.id);
+        router.refresh();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Failed to delete loan");
+      }
+    });
+  };
+
+  const handleDeleteRepayment = (paymentId: string) => {
+    if (!confirm("Are you sure you want to delete this repayment?")) return;
+    startTransition(async () => {
+      try {
+        await deletePersonalLoanRepayment(paymentId);
+        router.refresh();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Failed to delete repayment");
       }
     });
   };
@@ -61,7 +84,7 @@ export function LoanRow({ debt }: LoanRowProps) {
         <div className="mb-1.5 flex flex-wrap items-center gap-2">
           <MemberAvatar
             name={debt.lenderName}
-            emoji={debt.lenderEmoji}
+            iconName={debt.lenderIcon}
             colorCode={debt.lenderColor}
           />
           <span className="text-[13px] font-medium">{debt.lenderName}</span>
@@ -69,7 +92,7 @@ export function LoanRow({ debt }: LoanRowProps) {
           <ArrowRight className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
           <MemberAvatar
             name={debt.borrowerName}
-            emoji={debt.borrowerEmoji}
+            iconName={debt.borrowerIcon}
             colorCode={debt.borrowerColor}
           />
           <span className="text-[13px] font-medium">{debt.borrowerName}</span>
@@ -89,73 +112,123 @@ export function LoanRow({ debt }: LoanRowProps) {
                 ` · ${formatCurrencyPlain(debt.repaid)} repaid`}
               {debt.note && ` · ${debt.note}`}
               {" · "}
-              {format(new Date(debt.createdAt), "MMM d")}
+              {format(new Date(debt.createdAt), "MMM d, yyyy")}
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setRepayAmount(debt.remaining.toString());
-              setError(null);
-              setRepayOpen(true);
-            }}
-            disabled={isPending}
-          >
-            Record repayment
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDeleteLoan}
+              disabled={isPending}
+              className="text-[var(--text-danger)] hover:bg-[var(--text-danger)]/5 border-transparent hover:border-[var(--text-danger)]/20 cursor-pointer"
+              title="Delete loan"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+            {canRepay && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="cursor-pointer"
+                onClick={() => {
+                  setRepayAmount(debt.remaining.toString());
+                  setError(null);
+                  setRepayOpen(true);
+                }}
+                disabled={isPending}
+              >
+                Record repayment
+              </Button>
+            )}
+          </div>
         </div>
+
+        {debt.payments.length > 0 && (
+          <div className="mt-3 border-t border-[var(--border-t)] pt-2.5">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)] mb-1.5">
+              Repayments History
+            </div>
+            <div className="space-y-1.5">
+              {debt.payments.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between text-[12px] text-[var(--text-secondary)]"
+                >
+                  <span>
+                    Repaid {formatCurrencyPlain(p.amount)} on {format(new Date(p.paidAt), "MMM d, yyyy h:mm a")}
+                  </span>
+                  {isBorrower && (
+                    <button
+                      onClick={() => handleDeleteRepayment(p.id)}
+                      disabled={isPending}
+                      className="text-[var(--text-danger)] hover:underline ml-2 cursor-pointer disabled:opacity-50 font-medium"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <Dialog open={repayOpen} onOpenChange={setRepayOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Record repayment</DialogTitle>
+        <DialogContent className="max-w-sm p-6">
+          <DialogHeader className="mb-2">
+            <DialogTitle className="text-base font-semibold">Record repayment</DialogTitle>
           </DialogHeader>
-          <p className="text-[13px] text-[var(--text-secondary)]">
-            {debt.borrowerName} repays {debt.lenderName}. Remaining:{" "}
-            {formatCurrencyPlain(debt.remaining)}
-          </p>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="repay-amount">Amount (₹)</Label>
-            <Input
-              id="repay-amount"
-              type="number"
-              step="0.01"
-              min="0"
-              max={debt.remaining}
-              value={repayAmount}
-              onChange={(e) => setRepayAmount(e.target.value)}
-            />
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-fit"
-            onClick={() => setRepayAmount(debt.remaining.toString())}
-          >
-            Pay full remaining
-          </Button>
-          {error && (
-            <p className="text-[12px] text-[var(--text-danger)]">{error}</p>
-          )}
-          <div className="flex justify-end gap-2">
-            <DialogClose asChild>
-              <Button variant="outline" size="sm" disabled={isPending}>
-                Cancel
+          <div className="space-y-4">
+            <div className="rounded-md bg-[var(--bg-secondary)]/50 p-3 text-xs text-[var(--text-secondary)] leading-relaxed">
+              <span className="font-semibold text-[var(--text-primary)]">{debt.borrowerName}</span> is paying back <span className="font-semibold text-[var(--text-primary)]">{debt.lenderName}</span>.
+              <div className="mt-1">Remaining balance: <span className="font-semibold text-[var(--text-primary)]">{formatCurrencyPlain(debt.remaining)}</span></div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="repay-amount" className="text-xs font-medium text-[var(--text-secondary)]">Amount to repay (₹)</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="repay-amount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={debt.remaining}
+                  value={repayAmount}
+                  onChange={(e) => setRepayAmount(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 cursor-pointer text-xs"
+                  onClick={() => setRepayAmount(debt.remaining.toString())}
+                >
+                  Pay max
+                </Button>
+              </div>
+            </div>
+            {error && (
+              <p className="text-[12px] font-medium text-[var(--text-danger)]">{error}</p>
+            )}
+            <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-tertiary)]">
+              <DialogClose asChild>
+                <Button variant="outline" size="sm" disabled={isPending} className="cursor-pointer">
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button size="sm" onClick={handleRepay} disabled={isPending} className="cursor-pointer">
+                {isPending ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                    Saving…
+                  </>
+                ) : (
+                  "Confirm"
+                )}
               </Button>
-            </DialogClose>
-            <Button size="sm" onClick={handleRepay} disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Saving…
-                </>
-              ) : (
-                "Confirm repayment"
-              )}
-            </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

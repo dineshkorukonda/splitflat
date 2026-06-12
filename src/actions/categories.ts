@@ -6,10 +6,10 @@ import { requireAuth } from "@/lib/auth";
 import { slugifyCategory } from "@/lib/categories";
 import { revalidatePath } from "next/cache";
 
-export async function addCategory(label: string, emoji: string) {
+export async function addCategory(label: string, iconName: string) {
   await requireAuth();
   if (!label.trim()) throw new Error("Category name is required");
-  if (!emoji.trim()) throw new Error("Pick an emoji icon");
+  if (!iconName.trim()) throw new Error("Pick an icon name");
 
   let slug = slugifyCategory(label);
   const existing = await db.select().from(categories);
@@ -20,7 +20,7 @@ export async function addCategory(label: string, emoji: string) {
   await db.insert(categories).values({
     slug,
     label: label.trim(),
-    emoji: emoji.trim(),
+    iconName: iconName.trim(),
   });
 
   revalidatePath("/");

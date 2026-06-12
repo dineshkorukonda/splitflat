@@ -6,6 +6,7 @@ import { formatCurrencyPlain, formatExpenseDate } from "@/lib/format";
 import type { ExpenseWithDetails } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { Pencil, Trash2 } from "lucide-react";
+import { DynamicIcon } from "@/components/ui/dynamic-icon";
 
 type ExpenseItemProps = {
   expense: ExpenseWithDetails;
@@ -28,11 +29,11 @@ export function ExpenseItem({
     <div className="card card-interactive flex items-center gap-3 px-4 py-3">
       <div
         className={cn(
-          "flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] text-lg",
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-md)]",
           category.iconClass
         )}
       >
-        {category.emoji}
+        <DynamicIcon name={category.iconName} className="h-5 w-5" />
       </div>
       <button
         type="button"
@@ -54,8 +55,9 @@ export function ExpenseItem({
         <div className="text-sm font-semibold tabular-nums text-[var(--text-primary)]">
           {formatCurrencyPlain(expense.amount)}
         </div>
-        <div className="mt-0.5 text-[11px] text-[var(--text-secondary)]">
-          {expense.paidBy.emoji} {expense.paidBy.name}
+        <div className="mt-0.5 text-[11px] text-[var(--text-secondary)] flex items-center justify-end gap-1">
+          <DynamicIcon name={expense.paidBy.iconName} className="h-3 w-3 text-[var(--text-secondary)]" />
+          <span>{expense.paidBy.name}</span>
         </div>
       </div>
       {canEdit && (onEdit || onDelete) && (
@@ -64,7 +66,7 @@ export function ExpenseItem({
             <button
               type="button"
               onClick={onEdit}
-              className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
+              className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
               title="Edit expense"
             >
               <Pencil className="h-3.5 w-3.5" />
@@ -74,7 +76,7 @@ export function ExpenseItem({
             <button
               type="button"
               onClick={onDelete}
-              className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-danger)] hover:bg-[var(--bg-secondary)]"
+              className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-danger)] hover:bg-[var(--bg-secondary)] cursor-pointer"
               title="Delete expense"
             >
               <Trash2 className="h-3.5 w-3.5" />

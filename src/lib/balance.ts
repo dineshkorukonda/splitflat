@@ -1,12 +1,12 @@
 import { db } from "@/db";
 import { expenseSplits, expenses, members, settlements } from "@/db/schema";
 import { parseAmount, roundMoney } from "@/lib/format";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export type MemberBalance = {
   memberId: string;
   name: string;
-  emoji: string;
+  iconName: string;
   colorCode: string;
   totalPaid: number;
   totalOwed: number;
@@ -24,6 +24,12 @@ export type Transfer = {
 export type TransferWithNames = Transfer & {
   fromName: string;
   toName: string;
+  breakdown?: {
+    description: string;
+    amount: number;
+    date: string;
+    isPositive: boolean;
+  }[];
 };
 
 async function sumByMember(
@@ -138,7 +144,7 @@ export async function getMemberBalances(): Promise<MemberBalance[]> {
     return {
       memberId: m.id,
       name: m.name,
-      emoji: m.emoji,
+      iconName: m.iconName,
       colorCode: m.colorCode,
       totalPaid,
       totalOwed,
@@ -198,6 +204,144 @@ export function minimizeTransfers(
 
     if (creditors[i][1] < 0.01) i++;
     if (Math.abs(debtors[j][1]) < 0.01) j++;
+  }
+
+  return transfers;
+}
+
+export async function computeDirectTransfers(): Promise<TransferWithNames[]> {
+  const [allMembers, splitsQuery, settlementsQuery] = await Promise.all([
+    db.select().from(members).orderBy(members.name),
+    db
+      .select({
+        payerId: expenses.paidBy,
+        borrowerId: expenseSplits.memberId,
+        share: expenseSplits.share,
+        description: expenses.description,
+        date: expenses.date,
+      })
+      .from(expenseSplits)
+      .innerJoin(expenses, eq(expenseSplits.expenseId, expenses.id)),
+    db
+      .select({
+        fromId: settlements.fromId,
+        toId: settlements.toId,
+        amount: settlements.amount,
+        note: settlements.note,
+        settledAt: settlements.settledAt,
+      })
+      .from(settlements),
+  ]);
+
+  const memberMap = Object.fromEntries(allMembers.map((m) => [m.id, m.name]));
+
+  const expenseOwed = new Map<string, number>(); // key: `${payerId}-${borrowerId}`
+  for (const row of splitsQuery) {
+    const key = `${row.payerId}-${row.borrowerId}`;
+    const current = expenseOwed.get(key) ?? 0;
+    expenseOwed.set(key, current + parseAmount(row.share));
+  }
+
+  const settlementsSent = new Map<string, number>(); // key: `${fromId}-${toId}`
+  for (const row of settlementsQuery) {
+    const key = `${row.fromId}-${row.toId}`;
+    const current = settlementsSent.get(key) ?? 0;
+    settlementsSent.set(key, current + parseAmount(row.amount));
+  }
+
+  const transfers: TransferWithNames[] = [];
+
+  for (let i = 0; i < allMembers.length; i++) {
+    for (let j = i + 1; j < allMembers.length; j++) {
+      const memberA = allMembers[i].id;
+      const memberB = allMembers[j].id;
+
+      const B_owes_A_expenses = expenseOwed.get(`${memberA}-${memberB}`) ?? 0;
+      const A_owes_B_expenses = expenseOwed.get(`${memberB}-${memberA}`) ?? 0;
+
+      const B_settled_A = settlementsSent.get(`${memberB}-${memberA}`) ?? 0;
+      const A_settled_B = settlementsSent.get(`${memberA}-${memberB}`) ?? 0;
+
+      const net_B_owes_A = B_owes_A_expenses - A_owes_B_expenses - B_settled_A + A_settled_B;
+      const rounded = roundMoney(net_B_owes_A);
+
+      if (Math.abs(rounded) > 0.01) {
+        const debtor = rounded > 0.01 ? memberB : memberA;
+        const creditor = rounded > 0.01 ? memberA : memberB;
+
+        const breakdown: {
+          description: string;
+          amount: number;
+          date: string;
+          isPositive: boolean;
+        }[] = [];
+
+        // 1. Splits paid by creditor where debtor participating (increases debt)
+        const plusSplits = splitsQuery.filter(
+          (s) => s.payerId === creditor && s.borrowerId === debtor
+        );
+        for (const s of plusSplits) {
+          breakdown.push({
+            description: s.description,
+            amount: parseAmount(s.share),
+            date: s.date,
+            isPositive: true,
+          });
+        }
+
+        // 2. Splits paid by debtor where creditor participating (decreases debt)
+        const minusSplits = splitsQuery.filter(
+          (s) => s.payerId === debtor && s.borrowerId === creditor
+        );
+        for (const s of minusSplits) {
+          breakdown.push({
+            description: s.description,
+            amount: parseAmount(s.share),
+            date: s.date,
+            isPositive: false,
+          });
+        }
+
+        // 3. Settlements from debtor to creditor (decreases debt)
+        const minusSettlements = settlementsQuery.filter(
+          (s) => s.fromId === debtor && s.toId === creditor
+        );
+        for (const s of minusSettlements) {
+          breakdown.push({
+            description: `Settlement${s.note ? `: ${s.note}` : ""}`,
+            amount: parseAmount(s.amount),
+            date: s.settledAt.toISOString(),
+            isPositive: false,
+          });
+        }
+
+        // 4. Settlements from creditor to debtor (increases debt)
+        const plusSettlements = settlementsQuery.filter(
+          (s) => s.fromId === creditor && s.toId === debtor
+        );
+        for (const s of plusSettlements) {
+          breakdown.push({
+            description: `Settlement${s.note ? `: ${s.note}` : ""}`,
+            amount: parseAmount(s.amount),
+            date: s.settledAt.toISOString(),
+            isPositive: true,
+          });
+        }
+
+        breakdown.sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+
+        transfers.push({
+          fromId: debtor,
+          fromName: memberMap[debtor] ?? "Unknown",
+          toId: creditor,
+          toName: memberMap[creditor] ?? "Unknown",
+          amount: Math.abs(rounded),
+          breakdown,
+        });
+      }
+    }
   }
 
   return transfers;

@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { DynamicIcon } from "@/components/ui/dynamic-icon";
 
 function getTextColor(bg: string): string {
   const r = parseInt(bg.slice(1, 3), 16);
@@ -11,25 +12,32 @@ function getTextColor(bg: string): string {
 type MemberAvatarProps = {
   name: string;
   colorCode: string;
-  emoji?: string;
+  iconName?: string;
   size?: "sm" | "md" | "lg";
   className?: string;
 };
 
 const sizeClasses = {
-  sm: "h-[22px] w-[22px] text-[11px]",
-  md: "h-9 w-9 text-base rounded-[var(--radius-md)]",
-  lg: "h-10 w-10 text-lg rounded-[var(--radius-md)]",
+  sm: "h-[22px] w-[22px] text-[10px]",
+  md: "h-9 w-9 text-sm rounded-[var(--radius-md)]",
+  lg: "h-10 w-10 text-base rounded-[var(--radius-md)]",
+};
+
+const iconSizes = {
+  sm: "h-3.5 w-3.5",
+  md: "h-5 w-5",
+  lg: "h-5.5 w-5.5",
 };
 
 export function MemberAvatar({
   name,
   colorCode,
-  emoji,
+  iconName,
   size = "sm",
   className,
 }: MemberAvatarProps) {
   const initial = name.charAt(0).toUpperCase();
+  const contrastColor = getTextColor(colorCode);
 
   return (
     <span
@@ -38,10 +46,14 @@ export function MemberAvatar({
         sizeClasses[size],
         className
       )}
-      style={{ backgroundColor: colorCode, color: emoji ? undefined : getTextColor(colorCode) }}
+      style={{ backgroundColor: colorCode, color: contrastColor }}
       title={name}
     >
-      {emoji ?? initial}
+      {iconName ? (
+        <DynamicIcon name={iconName} className={iconSizes[size]} />
+      ) : (
+        initial
+      )}
     </span>
   );
 }

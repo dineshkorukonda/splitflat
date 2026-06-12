@@ -8,6 +8,7 @@ import {
   getMemberNameMap,
   minimizeTransfers,
 } from "@/lib/balance";
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export async function markSettled(
@@ -44,6 +45,14 @@ export async function markSettled(
     note: note ?? null,
   });
 
+  revalidatePath("/");
+  revalidatePath("/settle");
+  revalidatePath("/members");
+}
+
+export async function deleteSettlement(id: string) {
+  await requireAuth();
+  await db.delete(settlements).where(eq(settlements.id, id));
   revalidatePath("/");
   revalidatePath("/settle");
   revalidatePath("/members");

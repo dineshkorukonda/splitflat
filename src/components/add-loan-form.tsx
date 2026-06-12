@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useViewAs } from "@/components/view-as-context";
 import type { Member } from "@/lib/queries";
 import { useState, useTransition } from "react";
 
@@ -22,12 +23,17 @@ type AddLoanFormProps = {
 };
 
 export function AddLoanForm({ members, onClose, onSaved }: AddLoanFormProps) {
+  const { memberId } = useViewAs();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [lenderId, setLenderId] = useState(members[0]?.id ?? "");
-  const [borrowerId, setBorrowerId] = useState(members[1]?.id ?? members[0]?.id ?? "");
+  
+  const lenderId = memberId || members[0]?.id || "";
+  const otherMembers = members.filter((m) => m.id !== lenderId);
+  const [borrowerId, setBorrowerId] = useState(otherMembers[0]?.id ?? "");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+
+  const activeLender = members.find((m) => m.id === lenderId);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,39 +73,30 @@ export function AddLoanForm({ members, onClose, onSaved }: AddLoanFormProps) {
       <div className="mb-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <Label>Lent by</Label>
-          <Select value={lenderId} onValueChange={setLenderId}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {members.map((m) => (
-                <SelectItem key={m.id} value={m.id}>
-                  <span className="flex items-center gap-2">
-                    <MemberAvatar
-                      name={m.name}
-                      emoji={m.emoji}
-                      colorCode={m.colorCode}
-                    />
-                    {m.name}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex h-9 w-full items-center gap-1.5 rounded-md border border-[var(--border-tertiary)] bg-[var(--bg-secondary)]/50 px-3 py-1.5 text-xs text-[var(--text-secondary)]">
+            {activeLender && (
+              <MemberAvatar
+                name={activeLender.name}
+                iconName={activeLender.iconName}
+                colorCode={activeLender.colorCode}
+              />
+            )}
+            <span>{activeLender?.name}</span>
+          </div>
         </div>
         <div className="flex flex-col gap-1">
           <Label>Borrowed by</Label>
           <Select value={borrowerId} onValueChange={setBorrowerId}>
             <SelectTrigger>
-              <SelectValue />
+              <SelectValue placeholder="Select borrower" />
             </SelectTrigger>
             <SelectContent>
-              {members.map((m) => (
+              {otherMembers.map((m) => (
                 <SelectItem key={m.id} value={m.id}>
                   <span className="flex items-center gap-2">
                     <MemberAvatar
                       name={m.name}
-                      emoji={m.emoji}
+                      iconName={m.iconName}
                       colorCode={m.colorCode}
                     />
                     {m.name}
@@ -143,7 +140,7 @@ export function AddLoanForm({ members, onClose, onSaved }: AddLoanFormProps) {
         <Button type="button" variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isPending || !borrowerId} className="cursor-pointer">
           {isPending ? "Saving…" : "Record loan"}
         </Button>
       </div>

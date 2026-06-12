@@ -13,6 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useViewAs } from "@/components/view-as-context";
+import { DynamicIcon } from "@/components/ui/dynamic-icon";
 import type { CategoryOption, ExpenseWithDetails, Member } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -35,14 +37,16 @@ export function AddExpenseForm({
   onSaved,
   embedded = false,
 }: AddExpenseFormProps) {
+  const { memberId } = useViewAs();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   const [description, setDescription] = useState(expense?.description ?? "");
   const [amount, setAmount] = useState(expense?.amount?.toString() ?? "");
   const [paidById, setPaidById] = useState(
-    expense?.paidBy.id ?? members[0]?.id ?? ""
+    expense?.paidBy.id ?? memberId ?? members[0]?.id ?? ""
   );
+  const payer = members.find((m) => m.id === paidById);
   const [category, setCategory] = useState(
     expense?.category ?? categories[0]?.slug ?? "food"
   );
@@ -135,18 +139,10 @@ export function AddExpenseForm({
         </div>
         <div className="flex flex-col gap-1">
           <Label>Paid by</Label>
-          <Select value={paidById} onValueChange={setPaidById}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {members.map((m) => (
-                <SelectItem key={m.id} value={m.id}>
-                  {m.emoji} {m.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex h-9 w-full items-center gap-1.5 rounded-md border border-[var(--border-tertiary)] bg-[var(--bg-secondary)]/50 px-3 py-1.5 text-xs text-[var(--text-secondary)]">
+            {payer && <DynamicIcon name={payer.iconName} className="h-3.5 w-3.5" />}
+            <span>{payer?.name}</span>
+          </div>
         </div>
       </div>
 
@@ -180,7 +176,7 @@ export function AddExpenseForm({
                 type="button"
                 onClick={() => toggleMember(m.id)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs transition-colors",
+                  "flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs transition-colors cursor-pointer",
                   checked
                     ? "border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-primary)]"
                     : "border-[var(--border-secondary)] bg-[var(--bg-primary)] text-[var(--text-primary)]"
@@ -188,7 +184,7 @@ export function AddExpenseForm({
               >
                 <MemberAvatar
                   name={m.name}
-                  emoji={m.emoji}
+                  iconName={m.iconName}
                   colorCode={m.colorCode}
                 />
                 {m.name}

@@ -1,10 +1,10 @@
 import { db } from "@/db";
-import { categories, expenseSplits, expenses, members } from "@/db/schema";
+import { categories, expenseSplits, expenses, members, settlements } from "@/db/schema";
 import { getCategoryMeta, type CategoryMeta } from "@/lib/categories";
 import {
   computeBalances,
   getMemberBalances as computeMemberBalances,
-  minimizeTransfers,
+  computeDirectTransfers,
   type MemberBalance,
 } from "@/lib/balance";
 
@@ -15,7 +15,7 @@ import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 export type Member = {
   id: string;
   name: string;
-  emoji: string;
+  iconName: string;
   colorCode: string;
 };
 
@@ -36,7 +36,7 @@ export async function getMembers(): Promise<Member[]> {
   return rows.map((m) => ({
     id: m.id,
     name: m.name,
-    emoji: m.emoji,
+    iconName: m.iconName,
     colorCode: m.colorCode,
   }));
 }
@@ -46,26 +46,75 @@ export async function getCategories(): Promise<CategoryOption[]> {
   return rows.map((c) => getCategoryMeta(c.slug));
 }
 
+export type SettlementWithDetails = {
+  id: string;
+  fromId: string;
+  fromName: string;
+  fromIcon: string;
+  fromColor: string;
+  toId: string;
+  toName: string;
+  toIcon: string;
+  toColor: string;
+  amount: number;
+  settledAt: string;
+  note: string | null;
+};
+
+export async function getSettlements(): Promise<SettlementWithDetails[]> {
+  const rows = await db
+    .select({
+      id: settlements.id,
+      fromId: settlements.fromId,
+      toId: settlements.toId,
+      amount: settlements.amount,
+      settledAt: settlements.settledAt,
+      note: settlements.note,
+    })
+    .from(settlements)
+    .orderBy(desc(settlements.settledAt));
+  
+  const allMembers = await getMembers();
+  const memberMap = new Map(allMembers.map((m) => [m.id, m]));
+  
+  return rows.map((r) => {
+    const from = memberMap.get(r.fromId)!;
+    const to = memberMap.get(r.toId)!;
+    return {
+      id: r.id,
+      fromId: r.fromId,
+      fromName: from.name,
+      fromIcon: from.iconName,
+      fromColor: from.colorCode,
+      toId: r.toId,
+      toName: to.name,
+      toIcon: to.iconName,
+      toColor: to.colorCode,
+      amount: parseAmount(r.amount),
+      settledAt: r.settledAt.toISOString(),
+      note: r.note,
+    };
+  });
+}
+
 export async function getMemberBalances(): Promise<MemberBalance[]> {
   return computeMemberBalances();
 }
 
 export async function getMinimizedTransfers() {
-  const [balances, allMembers] = await Promise.all([
-    computeBalances(),
+  const [transfers, allMembers] = await Promise.all([
+    computeDirectTransfers(),
     getMembers(),
   ]);
-  const nameMap = Object.fromEntries(allMembers.map((m) => [m.id, m.name]));
   const memberById = new Map(allMembers.map((m) => [m.id, m]));
-  const transfers = minimizeTransfers(balances, nameMap);
 
   return transfers.map((t) => {
     const from = memberById.get(t.fromId)!;
     const to = memberById.get(t.toId)!;
     return {
       ...t,
-      fromEmoji: from.emoji,
-      toEmoji: to.emoji,
+      fromIcon: from.iconName,
+      toIcon: to.iconName,
       fromColor: from.colorCode,
       toColor: to.colorCode,
     };

@@ -1,6 +1,7 @@
 import { AppTitle } from "@/components/app-title";
 import { LoginForm } from "@/components/login-form";
 import { isAuthenticated } from "@/lib/auth";
+import { getMembers } from "@/lib/queries";
 import { redirect } from "next/navigation";
 
 type LoginPageProps = {
@@ -14,6 +15,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   const params = await searchParams;
   const redirectTo = params.from && params.from !== "/login" ? params.from : "/";
+  const members = await getMembers();
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
@@ -23,10 +25,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <AppTitle />
           </div>
           <p className="mt-3 text-[13px] text-[var(--text-secondary)]">
-            Enter the flat password to continue
+            Unlock flat and sign in
           </p>
         </div>
-        <LoginForm redirectTo={redirectTo} />
+        <LoginForm redirectTo={redirectTo} members={members} />
       </div>
     </div>
   );
